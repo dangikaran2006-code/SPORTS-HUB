@@ -59,6 +59,15 @@ class ScoringEngineFactory {
             case 'table_tennis':
                 require_once __DIR__ . '/table-tennis-scoring.php';
                 return new TableTennisScoringAdapter();
+            case 'hockey':
+                require_once __DIR__ . '/hockey-scoring.php';
+                return new HockeyScoringAdapter();
+            case 'athletics':
+                require_once __DIR__ . '/athletics-scoring.php';
+                return new AthleticsScoringAdapter();
+            case 'chess':
+                require_once __DIR__ . '/chess-scoring.php';
+                return new ChessScoringAdapter();
             default:
                 require_once __DIR__ . '/cricket-scoring.php';
                 return new CricketScoringAdapter();
