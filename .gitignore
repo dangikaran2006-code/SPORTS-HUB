@@ -1,0 +1,10 @@
+# Dependencies & Environment
+vendor/
+node_modules/
+.env
+
+# Temporary / OS files
+.DS_Store
+Thumbs.db
+*.log
+scratch/
