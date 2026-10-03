@@ -12,36 +12,51 @@ require_once __DIR__ . '/../includes/auth.php';
 requireAdminAccess();
 
 $db = getDB();
-$sportsList = [
-    ['id' => 1, 'name' => 'Cricket', 'type' => 'TEAM', 'category' => 'Men', 'format' => 'MATCH', 'scoring' => 'Runs / Wickets / Overs', 'status' => 'Active'],
-    ['id' => 2, 'name' => 'Football', 'type' => 'TEAM', 'category' => 'Men', 'format' => 'MATCH', 'scoring' => 'Goals / Half / Penalties', 'status' => 'Active'],
-    ['id' => 3, 'name' => 'Kabaddi', 'type' => 'TEAM', 'category' => 'Men', 'format' => 'MATCH', 'scoring' => 'Raid / Tackle / Super Points', 'status' => 'Active'],
-    ['id' => 4, 'name' => 'Basketball', 'type' => 'TEAM', 'category' => 'Men & Women', 'format' => 'MATCH', 'scoring' => 'Quarter Points (1/2/3)', 'status' => 'Active'],
-    ['id' => 5, 'name' => 'Volleyball', 'type' => 'TEAM', 'category' => 'Open', 'format' => 'MATCH', 'scoring' => 'Set Scores (Best of 3)', 'status' => 'Active'],
-    ['id' => 6, 'name' => 'Badminton', 'type' => 'INDIVIDUAL', 'category' => 'Singles & Doubles', 'format' => 'ROUND', 'scoring' => 'Rally Points / Games', 'status' => 'Active'],
-    ['id' => 7, 'name' => 'Tennis', 'type' => 'INDIVIDUAL', 'category' => 'Open', 'format' => 'ROUND', 'scoring' => 'Games / Sets', 'status' => 'Active'],
-    ['id' => 8, 'name' => 'Table Tennis', 'type' => 'INDIVIDUAL', 'category' => 'Open', 'format' => 'ROUND', 'scoring' => '11-Point Sets', 'status' => 'Active'],
-    ['id' => 9, 'name' => 'Athletics (100m, Relay)', 'type' => 'RELAY', 'category' => 'Individual & Relay', 'format' => 'HEAT', 'scoring' => 'Time (sec) / Distance (m)', 'status' => 'Active'],
-    ['id' => 10, 'name' => 'Chess', 'type' => 'INDIVIDUAL', 'category' => 'Open', 'format' => 'ROUND', 'scoring' => 'Win (1) / Draw (0.5) / Loss (0)', 'status' => 'Active'],
-];
-
 $msg = '';
+$error = '';
+$csrfToken = generateCsrfToken();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = trim($_POST['sport_name'] ?? '');
-    $type = $_POST['sport_type'] ?? 'TEAM';
-    $cat  = $_POST['category'] ?? 'Open';
-    if (!empty($name)) {
-        $sportsList[] = [
-            'id' => count($sportsList) + 1,
-            'name' => $name,
-            'type' => $type,
-            'category' => $cat,
-            'format' => 'MATCH',
-            'scoring' => 'Custom Points',
-            'status' => 'Active'
-        ];
-        $msg = "New sport <strong>" . htmlspecialchars($name) . "</strong> registered successfully.";
+    $token = $_POST['csrf_token'] ?? '';
+    if (!validateCsrfToken($token)) {
+        $error = 'Security validation failed (Invalid CSRF Token).';
+    } else {
+        $name = trim($_POST['sport_name'] ?? '');
+        $type = $_POST['sport_type'] ?? 'TEAM';
+        $cat  = $_POST['category'] ?? 'Open';
+        
+        if (!empty($name)) {
+            $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $name), '-'));
+            $newId = insert('sports', [
+                'name'     => $name,
+                'slug'     => $slug,
+                'type'     => $type,
+                'category' => $cat,
+                'icon'     => '🏆',
+                'status'   => 'active'
+            ]);
+            logAuditAction('Sport Created', 'Sport', $newId, "Registered new sport '{$name}' ({$type})");
+            $msg = "New sport <strong>" . htmlspecialchars($name) . "</strong> registered successfully.";
+        } else {
+            $error = 'Please enter a valid sport name.';
+        }
     }
+}
+
+// Fetch configured sports from MySQL DB
+$sportsList = [];
+if ($db->getConnection()) {
+    $sportsList = fetchAll("SELECT * FROM sports ORDER BY id ASC");
+}
+
+if (empty($sportsList)) {
+    $sportsList = [
+        ['id' => 1, 'name' => 'Cricket', 'type' => 'TEAM', 'category' => 'Men', 'format' => 'MATCH', 'scoring' => 'Runs / Wickets / Overs', 'status' => 'active'],
+        ['id' => 2, 'name' => 'Football', 'type' => 'TEAM', 'category' => 'Men', 'format' => 'MATCH', 'scoring' => 'Goals / Half / Penalties', 'status' => 'active'],
+        ['id' => 3, 'name' => 'Kabaddi', 'type' => 'TEAM', 'category' => 'Men', 'format' => 'MATCH', 'scoring' => 'Raid / Tackle / Super Points', 'status' => 'active'],
+        ['id' => 4, 'name' => 'Basketball', 'type' => 'TEAM', 'category' => 'Men & Women', 'format' => 'MATCH', 'scoring' => 'Quarter Points (1/2/3)', 'status' => 'active'],
+        ['id' => 5, 'name' => 'Volleyball', 'type' => 'TEAM', 'category' => 'Open', 'format' => 'MATCH', 'scoring' => 'Set Scores (Best of 3)', 'status' => 'active'],
+    ];
 }
 
 include_once __DIR__ . '/../includes/header.php';
@@ -55,8 +70,14 @@ include_once __DIR__ . '/../includes/header.php';
 </div>
 
 <?php if (!empty($msg)): ?>
-  <div class="auth-alert auth-alert-success" style="margin-bottom: 24px; background: rgba(0, 230, 118, 0.15); border: 1px solid rgba(0, 230, 118, 0.3); color: var(--accent-green); padding: 12px 16px; border-radius: 8px;">
+  <div class="auth-alert auth-alert-success" style="margin-bottom: 24px;">
     <span><?php echo $msg; ?></span>
+  </div>
+<?php endif; ?>
+
+<?php if (!empty($error)): ?>
+  <div class="auth-alert auth-alert-danger" style="margin-bottom: 24px;">
+    <span><?php echo htmlspecialchars($error); ?></span>
   </div>
 <?php endif; ?>
 
@@ -66,10 +87,13 @@ include_once __DIR__ . '/../includes/header.php';
     <h2>+ Add New Sport Event</h2>
   </div>
   <form action="" method="POST" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 16px; align-items: end;">
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
+
     <div class="form-group" style="margin: 0;">
-      <label>Sport Name</label>
+      <label>Sport Name *</label>
       <input type="text" name="sport_name" class="form-control" placeholder="e.g. Swimming, Archery, Hockey" required>
     </div>
+
     <div class="form-group" style="margin: 0;">
       <label>Sport Type</label>
       <select name="sport_type" class="form-control">
@@ -79,6 +103,7 @@ include_once __DIR__ . '/../includes/header.php';
         <option value="EVENT">EVENT</option>
       </select>
     </div>
+
     <div class="form-group" style="margin: 0;">
       <label>Category</label>
       <select name="category" class="form-control">
@@ -88,6 +113,7 @@ include_once __DIR__ . '/../includes/header.php';
         <option value="Open" selected>Open</option>
       </select>
     </div>
+
     <div>
       <button type="submit" class="btn btn-primary" style="width: 100%;">
         + Register Sport
@@ -109,8 +135,6 @@ include_once __DIR__ . '/../includes/header.php';
           <th>Sport Name</th>
           <th>Type</th>
           <th>Category</th>
-          <th>Event Format</th>
-          <th>Scoring Engine Mode</th>
           <th>Status</th>
           <th>Action</th>
         </tr>
@@ -122,16 +146,14 @@ include_once __DIR__ . '/../includes/header.php';
             <td><strong style="color: #fff;"><?php echo htmlspecialchars($s['name']); ?></strong></td>
             <td>
               <span class="badge" style="background: rgba(0, 230, 118, 0.15); color: var(--accent-green); font-weight: 700;">
-                <?php echo htmlspecialchars($s['type']); ?>
+                <?php echo htmlspecialchars($s['type'] ?? 'TEAM'); ?>
               </span>
             </td>
-            <td><?php echo htmlspecialchars($s['category']); ?></td>
-            <td><code><?php echo htmlspecialchars($s['format']); ?></code></td>
-            <td><span style="font-size: 0.85rem; color: var(--text-muted);"><?php echo htmlspecialchars($s['scoring']); ?></span></td>
-            <td><span class="status-badge badge-active">Active</span></td>
+            <td><?php echo htmlspecialchars($s['category'] ?? 'Open'); ?></td>
+            <td><span class="status-badge badge-active"><?php echo ucfirst(htmlspecialchars($s['status'] ?? 'active')); ?></span></td>
             <td>
-              <a href="<?php echo BASE_URL; ?>/admin/points.php" class="btn btn-secondary btn-sm">
-                Point Rules
+              <a href="<?php echo BASE_URL; ?>/public/sport-detail.php?slug=<?php echo urlencode($s['slug'] ?? strtolower($s['name'])); ?>" class="btn btn-secondary btn-sm">
+                View Detail →
               </a>
             </td>
           </tr>

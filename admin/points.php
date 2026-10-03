@@ -9,31 +9,52 @@ require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/department-helper.php';
+require_once __DIR__ . '/../includes/statistics-helper.php';
 
 requireAdminAccess();
 
-$standings = DepartmentService::getOverallTrophyStandings();
-
 $msg = '';
+$error = '';
+$csrfToken = generateCsrfToken();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token  = $_POST['csrf_token'] ?? '';
     $action = $_POST['action'] ?? '';
-    if ($action === 'recalculate') {
-        // Deterministic transaction-based recalculation
-        $db = getDB();
-        $db->getConnection()->beginTransaction();
-        try {
-            // Re-fetch updated standings
-            $standings = DepartmentService::getOverallTrophyStandings();
-            $db->getConnection()->commit();
+
+    if (!validateCsrfToken($token)) {
+        $error = 'Security validation failed (Invalid CSRF Token).';
+    } else {
+        if ($action === 'recalculate') {
+            $db = getDB();
+            if ($db->getConnection()) {
+                // Fetch all active tournaments and recalculate standings
+                $tournaments = fetchAll("SELECT id FROM tournaments");
+                foreach ($tournaments as $t) {
+                    StatisticsService::recalculateTournamentStandings($t['id'], $db->getConnection());
+                }
+            }
+            logAuditAction('Trophy Standings Recalculated', 'Points', null, "Recalculated overall department trophy standings");
             $msg = "🏆 Overall Department Standings and Trophy Points successfully recalculated using current verified match results!";
-        } catch (Exception $e) {
-            $db->getConnection()->rollBack();
-            $msg = "Error during recalculation: " . $e->getMessage();
+        } elseif ($action === 'update_rules') {
+            $teamWin    = intval($_POST['team_win'] ?? 10);
+            $teamRunner = intval($_POST['team_runner'] ?? 7);
+            $goldPts    = intval($_POST['gold_pts'] ?? 5);
+            $silverPts  = intval($_POST['silver_pts'] ?? 3);
+            $bronzePts  = intval($_POST['bronze_pts'] ?? 1);
+
+            updateSetting('rule_team_win', $teamWin);
+            updateSetting('rule_team_runner', $teamRunner);
+            updateSetting('rule_gold_pts', $goldPts);
+            updateSetting('rule_silver_pts', $silverPts);
+            updateSetting('rule_bronze_pts', $bronzePts);
+
+            logAuditAction('Point Rules Updated', 'Settings', null, "Updated sport point allocation matrix");
+            $msg = "⚙️ Sport Point Allocation Rules updated and saved to system settings!";
         }
-    } elseif ($action === 'update_rules') {
-        $msg = "⚙️ Sport Point Allocation Rules updated successfully!";
     }
 }
+
+$standings = DepartmentService::getOverallTrophyStandings();
 
 include_once __DIR__ . '/../includes/header.php';
 ?>
@@ -44,6 +65,7 @@ include_once __DIR__ . '/../includes/header.php';
     <p>Automated trophy calculation matrix, gold/silver/bronze medal tallies, and configurable point rules.</p>
   </div>
   <form action="" method="POST" onsubmit="return confirm('Recalculate overall trophy standings from finalized match results?');">
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
     <input type="hidden" name="action" value="recalculate">
     <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #ffd700, #ff9800); color: #000; font-weight: 700;">
       🔄 Recalculate Trophy Standings
@@ -52,8 +74,14 @@ include_once __DIR__ . '/../includes/header.php';
 </div>
 
 <?php if (!empty($msg)): ?>
-  <div class="auth-alert auth-alert-success" style="margin-bottom: 24px; background: rgba(0, 230, 118, 0.15); border: 1px solid rgba(0, 230, 118, 0.3); color: var(--accent-green); padding: 12px 16px; border-radius: 8px;">
+  <div class="auth-alert auth-alert-success" style="margin-bottom: 24px;">
     <span><?php echo $msg; ?></span>
+  </div>
+<?php endif; ?>
+
+<?php if (!empty($error)): ?>
+  <div class="auth-alert auth-alert-danger" style="margin-bottom: 24px;">
+    <span><?php echo htmlspecialchars($error); ?></span>
   </div>
 <?php endif; ?>
 
@@ -125,39 +153,35 @@ include_once __DIR__ . '/../includes/header.php';
   </div>
 
   <form action="" method="POST" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
     <input type="hidden" name="action" value="update_rules">
 
     <div class="form-group">
       <label>Team Winner Points</label>
-      <input type="number" name="team_win" class="form-control" value="10" required>
+      <input type="number" name="team_win" class="form-control" value="<?php echo htmlspecialchars(getSetting('rule_team_win', '10')); ?>" required>
     </div>
 
     <div class="form-group">
       <label>Team Runner-up Points</label>
-      <input type="number" name="team_runner" class="form-control" value="7" required>
+      <input type="number" name="team_runner" class="form-control" value="<?php echo htmlspecialchars(getSetting('rule_team_runner', '7')); ?>" required>
     </div>
 
     <div class="form-group">
       <label>Individual Gold (1st)</label>
-      <input type="number" name="gold_pts" class="form-control" value="5" required>
+      <input type="number" name="gold_pts" class="form-control" value="<?php echo htmlspecialchars(getSetting('rule_gold_pts', '5')); ?>" required>
     </div>
 
     <div class="form-group">
       <label>Individual Silver (2nd)</label>
-      <input type="number" name="silver_pts" class="form-control" value="3" required>
+      <input type="number" name="silver_pts" class="form-control" value="<?php echo htmlspecialchars(getSetting('rule_silver_pts', '3')); ?>" required>
     </div>
 
     <div class="form-group">
       <label>Individual Bronze (3rd)</label>
-      <input type="number" name="bronze_pts" class="form-control" value="1" required>
+      <input type="number" name="bronze_pts" class="form-control" value="<?php echo htmlspecialchars(getSetting('rule_bronze_pts', '1')); ?>" required>
     </div>
 
-    <div class="form-group">
-      <label>Participation Bonus</label>
-      <input type="number" name="part_pts" class="form-control" value="1" required>
-    </div>
-
-    <div style="grid-column: span 2; display: flex; align-items: flex-end;">
+    <div style="grid-column: span 3; display: flex; align-items: flex-end;">
       <button type="submit" class="btn btn-secondary" style="width: 100%;">
         💾 Save Point Rules Matrix
       </button>
