@@ -8,6 +8,7 @@ $pageTitle = 'College Championship Home';
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/department-helper.php';
+require_once __DIR__ . '/../includes/scoring-helper.php';
 
 $db = getDB();
 $championship = DepartmentService::getMasterChampionship();
@@ -76,10 +77,26 @@ include_once __DIR__ . '/../includes/public-header.php';
       <?php else: ?>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
           <?php foreach ($liveMatches as $match): ?>
+            <?php
+              $scoreA = $match['score_a'] ?? $match['score_team_a'] ?? '-';
+              $scoreB = $match['score_b'] ?? $match['score_team_b'] ?? '-';
+              $venueName = $match['venue_name'] ?? $match['venue'] ?? 'Sports Arena';
+
+              if (class_exists('ScoringService') && isset($match['id'])) {
+                  $liveState = ScoringService::getLiveState($match['id']);
+                  if ($liveState && !empty($liveState['live_state'])) {
+                      $ls = $liveState['live_state'];
+                      if (isset($ls['team_a']['display_score'])) $scoreA = $ls['team_a']['display_score'];
+                      elseif (isset($ls['team_a']['score'])) $scoreA = $ls['team_a']['score'];
+                      if (isset($ls['team_b']['display_score'])) $scoreB = $ls['team_b']['display_score'];
+                      elseif (isset($ls['team_b']['score'])) $scoreB = $ls['team_b']['score'];
+                  }
+              }
+            ?>
             <div style="background: var(--bg-card); border: 1px solid rgba(239, 68, 68, 0.4); padding: 18px; border-radius: var(--radius-md); position: relative;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent-green); text-transform: uppercase;">
-                  <?php echo htmlspecialchars($match['sport_name']); ?>
+                  <?php echo htmlspecialchars($match['sport_name'] ?? 'Sport'); ?>
                 </span>
                 <span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
                   LIVE
@@ -88,24 +105,24 @@ include_once __DIR__ . '/../includes/public-header.php';
 
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <div style="font-weight: 800; font-size: 1.05rem; color: #fff;">
-                  <?php echo htmlspecialchars($match['team_a_name']); ?>
+                  <?php echo htmlspecialchars($match['team_a_name'] ?? 'Team A'); ?>
                 </div>
                 <div style="font-size: 1.3rem; font-weight: 800; color: var(--accent-green);">
-                  <?php echo htmlspecialchars($match['score_a']); ?>
+                  <?php echo htmlspecialchars((string)$scoreA); ?>
                 </div>
               </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <div style="font-weight: 800; font-size: 1.05rem; color: #fff;">
-                  <?php echo htmlspecialchars($match['team_b_name']); ?>
+                  <?php echo htmlspecialchars($match['team_b_name'] ?? 'Team B'); ?>
                 </div>
                 <div style="font-size: 1.3rem; font-weight: 800; color: var(--accent-green);">
-                  <?php echo htmlspecialchars($match['score_b']); ?>
+                  <?php echo htmlspecialchars((string)$scoreB); ?>
                 </div>
               </div>
 
-              <div style="font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-subtle); pt: 8px; margin-top: 8px; display: flex; justify-content: space-between;">
-                <span>📍 <?php echo htmlspecialchars($match['venue_name']); ?></span>
+              <div style="font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-subtle); padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between;">
+                <span>📍 <?php echo htmlspecialchars((string)$venueName); ?></span>
                 <a href="<?php echo BASE_URL; ?>/public/live-score.php?id=<?php echo $match['id']; ?>" style="color: var(--accent-green); font-weight: 600; text-decoration: none;">Watch Live →</a>
               </div>
             </div>
@@ -218,12 +235,12 @@ include_once __DIR__ . '/../includes/public-header.php';
                   <?php echo htmlspecialchars($dept['short_code']); ?>
                 </div>
                 <div style="font-size: 0.72rem; color: var(--text-muted);">
-                  🥇 <?php echo $dept['golds']; ?> | 🥈 <?php echo $dept['silvers']; ?> | 🥉 <?php echo $dept['bronzes']; ?>
+                  🥇 <?php echo $dept['golds'] ?? $dept['gold_medals'] ?? 0; ?> | 🥈 <?php echo $dept['silvers'] ?? $dept['silver_medals'] ?? 0; ?> | 🥉 <?php echo $dept['bronzes'] ?? $dept['bronze_medals'] ?? 0; ?>
                 </div>
               </div>
             </div>
             <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent-green);">
-              <?php echo $dept['total_points']; ?> <span style="font-size: 0.75rem; font-weight: 500; color: var(--text-dim);">pts</span>
+              <?php echo $dept['total_points'] ?? $dept['points'] ?? 0; ?> <span style="font-size: 0.75rem; font-weight: 500; color: var(--text-dim);">pts</span>
             </div>
           </div>
         <?php endforeach; ?>
