@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/department-helper.php';
+require_once __DIR__ . '/../includes/setup-helper.php';
 
 // Enforce admin authority access for dashboard
 requireAdminAccess();
@@ -29,6 +30,18 @@ $overallStandings = DepartmentService::getOverallTrophyStandings();
 include_once __DIR__ . '/../includes/header.php';
 ?>
 
+<?php if (!isChampionshipActive()): ?>
+  <div style="background: rgba(245, 158, 11, 0.12); border: 2px dashed rgba(245, 158, 11, 0.4); padding: 20px 24px; border-radius: var(--radius-lg); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h3 style="margin: 0 0 4px 0; color: var(--accent-amber); font-weight: 800;">⚠️ No Active Championship Configured</h3>
+      <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Setup your college, departments, sports, venues, and point rules using the initialization wizard.</p>
+    </div>
+    <a href="<?php echo BASE_URL; ?>/admin/setup.php" class="btn btn-primary" style="background: var(--accent-amber); color: #000; font-weight: 800;">
+      🚀 Set Up Championship Now →
+    </a>
+  </div>
+<?php endif; ?>
+
 <!-- Dashboard Header / Championship Banner -->
 <div class="dashboard-header" style="background: linear-gradient(135deg, rgba(14, 21, 38, 0.95), rgba(10, 15, 26, 0.95)), url('<?php echo BASE_URL; ?>/assets/images/stadium-bg.jpg') center/cover; border: 1px solid var(--border-subtle); padding: 24px; border-radius: var(--radius-lg); margin-bottom: 24px;">
   <div class="dashboard-title-group">
@@ -37,27 +50,28 @@ include_once __DIR__ . '/../includes/header.php';
         COLLEGE SPORTS HUB
       </span>
       <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.3); padding: 4px 10px; font-weight: 700; font-size: 0.75rem;">
-        AY 2025-2026
+        AY <?php echo htmlspecialchars($championship['academic_year']); ?>
       </span>
     </div>
     <h1 style="font-size: 1.75rem; font-weight: 800; color: #fff; margin-bottom: 4px;">
       <?php echo htmlspecialchars($championship['name']); ?>
     </h1>
     <p style="color: var(--text-muted); font-size: 0.9rem;">
-      <?php echo htmlspecialchars($championship['college_name']); ?> &bull; 6 Departments &bull; 10 Sports &bull; Overall Championship Trophy Race
+      <?php echo htmlspecialchars($championship['college_name']); ?> &bull; Overall Department Championship Trophy Race
     </p>
   </div>
-  <div class="quick-actions-bar" style="display:flex; gap:10px; flex-wrap:wrap;">
-    <a href="<?php echo BASE_URL; ?>/public/trophy.php" class="btn btn-primary" style="background: linear-gradient(135deg, #ffd700, #ff9800); color: #000; font-weight: 700;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
-      <span>🏆 Overall Department Standings</span>
-    </a>
-    <?php if (in_array(strtolower($user['role']), ['admin', 'organizer'])): ?>
-      <a href="<?php echo BASE_URL; ?>/admin/tournaments.php?action=create" class="btn btn-secondary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span>+ Add Championship Sport</span>
-      </a>
-    <?php endif; ?>
+
+  <div class="quick-actions-bar" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 16px;">
+    <a href="<?php echo BASE_URL; ?>/admin/setup.php" class="btn btn-secondary btn-sm">🚀 Setup Wizard</a>
+    <a href="<?php echo BASE_URL; ?>/admin/departments.php" class="btn btn-secondary btn-sm">🏢 Add Department</a>
+    <a href="<?php echo BASE_URL; ?>/admin/sports.php" class="btn btn-secondary btn-sm">⚽ Add Sport</a>
+    <a href="<?php echo BASE_URL; ?>/admin/venues.php" class="btn btn-secondary btn-sm">📍 Add Venue</a>
+    <a href="<?php echo BASE_URL; ?>/admin/officials.php" class="btn btn-secondary btn-sm">👔 Add Official</a>
+    <a href="<?php echo BASE_URL; ?>/admin/teams.php" class="btn btn-secondary btn-sm">👥 Add Team</a>
+    <a href="<?php echo BASE_URL; ?>/admin/players.php" class="btn btn-secondary btn-sm">🏃 Add Athlete</a>
+    <a href="<?php echo BASE_URL; ?>/organizer/create-match.php" class="btn btn-primary btn-sm">📅 Create Fixture</a>
+  </div>
+</div>
   </div>
 </div>
 

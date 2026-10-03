@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/department-helper.php';
 require_once __DIR__ . '/../includes/scoring-helper.php';
+require_once __DIR__ . '/../includes/setup-helper.php';
 
 $db = getDB();
 $championship = DepartmentService::getMasterChampionship();
@@ -24,6 +25,16 @@ $completedMatches = array_filter($allMatches, function($m) {
 
 include_once __DIR__ . '/../includes/public-header.php';
 ?>
+
+<?php if (!isChampionshipActive()): ?>
+  <div style="background: rgba(245, 158, 11, 0.12); border: 2px dashed rgba(245, 158, 11, 0.4); padding: 24px; border-radius: var(--radius-lg); margin-bottom: 32px; text-align: center;">
+    <div style="font-size: 2.5rem; margin-bottom: 8px;">⏳</div>
+    <h2 style="color: var(--accent-amber); font-weight: 800; margin-bottom: 6px;">Championship Has Not Started Yet</h2>
+    <p style="color: var(--text-muted); font-size: 0.95rem; max-width: 600px; margin: 0 auto 16px auto;">
+      The official <?php echo htmlspecialchars($championship['name']); ?> schedule and live score tracking will become available once the Sports Authority activates the season.
+    </p>
+  </div>
+<?php endif; ?>
 
 <!-- Public Championship Banner -->
 <div style="background: linear-gradient(135deg, rgba(10, 15, 26, 0.95), rgba(7, 11, 20, 0.95)), url('<?php echo BASE_URL; ?>/assets/images/stadium-bg.jpg') center/cover; border: 1px solid var(--border-subtle); padding: 36px 28px; border-radius: var(--radius-lg); margin-bottom: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
