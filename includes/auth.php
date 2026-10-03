@@ -254,7 +254,6 @@ function isLastAdmin($userId) {
 function logAuditAction($action, $entity = null, $entityId = null, $description = null) {
     $user = currentUser();
     $userId = $user['id'] ?? ($_SESSION['user_id'] ?? null);
-    $userName = $user['name'] ?? ($_SESSION['user_name'] ?? 'System/Guest');
     $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 
     $db = getDB();
@@ -262,9 +261,8 @@ function logAuditAction($action, $entity = null, $entityId = null, $description 
         try {
             insert('audit_logs', [
                 'user_id'     => $userId,
-                'user_name'   => $userName,
                 'action'      => $action,
-                'entity'      => $entity,
+                'entity_type' => $entity ?: 'System',
                 'entity_id'   => $entityId,
                 'description' => $description,
                 'ip_address'  => $ip

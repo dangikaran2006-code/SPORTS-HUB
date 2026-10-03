@@ -4,9 +4,44 @@
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/maintenance-helper.php';
 
 $user = currentUser();
 $currentPage = $currentPage ?? 'home';
+
+// Check Maintenance Mode for public visitors (Admins bypass)
+if (isMaintenanceModeActive() && ($user['role'] ?? '') !== 'admin') {
+    $mConfig = getMaintenanceSettings();
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>System Under Maintenance | <?php echo APP_NAME; ?></title>
+      <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
+    </head>
+    <body style="background: #070b14; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; font-family: system-ui, sans-serif;">
+      <div style="max-width: 520px; text-align: center; background: #0f172a; padding: 40px 32px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+        <div style="font-size: 3.5rem; margin-bottom: 16px;">🚧</div>
+        <h1 style="font-size: 1.7rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Championship Portal Under Maintenance</h1>
+        <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 24px;">
+          <?php echo htmlspecialchars($mConfig['message']); ?>
+        </p>
+        <?php if (!empty($mConfig['end_time'])): ?>
+          <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; color: #f59e0b; display: inline-block; font-weight: 700;">
+            Estimated Completion: <?php echo htmlspecialchars($mConfig['end_time']); ?>
+          </div>
+        <?php endif; ?>
+        <div style="margin-top: 28px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
+          <a href="<?php echo BASE_URL; ?>/auth/login.php" style="color: #64748b; font-size: 0.85rem; text-decoration: underline;">Authorized Admin & Official Portal →</a>
+        </div>
+      </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -174,6 +174,15 @@ $userRole = strtolower($user['role'] ?? 'admin');
           <span>Settings</span>
         </a>
       </li>
+
+      <?php if ($userRole === 'admin'): ?>
+      <li class="nav-item <?php echo isNavActive('maintenance', $currentPage); ?>">
+        <a href="<?php echo BASE_URL; ?>/admin/maintenance.php">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Maintenance & Backup</span>
+        </a>
+      </li>
+      <?php endif; ?>
     </ul>
 
   </div>

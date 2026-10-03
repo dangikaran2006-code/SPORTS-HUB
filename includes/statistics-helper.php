@@ -97,8 +97,8 @@ class StatisticsService {
 
             if (empty($tTeams)) {
                 // Fallback: get all teams associated with tournament matches
-                $stmtAlt = $conn->prepare("SELECT DISTINCT team_a_id FROM matches WHERE tournament_id = :tid UNION SELECT DISTINCT team_b_id FROM matches WHERE tournament_id = :tid");
-                $stmtAlt->execute([':tid' => $tournamentId]);
+                $stmtAlt = $conn->prepare("SELECT DISTINCT team_a_id FROM matches WHERE tournament_id = :tid1 UNION SELECT DISTINCT team_b_id FROM matches WHERE tournament_id = :tid2");
+                $stmtAlt->execute([':tid1' => $tournamentId, ':tid2' => $tournamentId]);
                 $tTeams = $stmtAlt->fetchAll(PDO::FETCH_COLUMN);
             }
 
@@ -400,5 +400,23 @@ class StatisticsService {
             'overs_bowled'  => 0.0,
             'form'          => [],
         ];
+    }
+
+    /**
+     * Rebuild All Tournament Standings and Player Statistics across all active tournaments
+     */
+    public static function rebuildAllStatistics() {
+        $db = getDB();
+        $conn = $db->getConnection();
+        if ($conn) {
+            $stmt = $conn->query("SELECT id FROM tournaments");
+            $tourns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($tourns as $tid) {
+                self::recalculateTournamentStandings($tid, $conn);
+                self::recalculatePlayerStats($tid, $conn);
+            }
+            return true;
+        }
+        return false;
     }
 }
