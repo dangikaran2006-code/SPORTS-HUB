@@ -136,6 +136,16 @@ $userRole = strtolower($user['role'] ?? 'admin');
           <span>Announcements</span>
         </a>
       </li>
+
+      <li class="nav-item <?php echo isNavActive('notifications', $currentPage); ?>">
+        <a href="<?php echo BASE_URL; ?>/admin/notifications.php" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span>Notifications</span>
+          </div>
+          <span id="sidebarUnreadBadge" style="display:none; background:var(--accent-red); color:#fff; font-size:0.7rem; font-weight:800; padding:2px 7px; border-radius:10px;"></span>
+        </a>
+      </li>
       <?php endif; ?>
     </ul>
 

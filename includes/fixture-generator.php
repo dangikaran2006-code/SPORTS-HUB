@@ -35,17 +35,13 @@ function checkVenueConflict($venueId, $scheduledDate, $startTime, $endTime, $exc
     $db = getDB();
     if ($db->getConnection()) {
         $sql = "
-            SELECT id, scheduled_date, scheduled_time, scheduled_end 
+            SELECT id, scheduled_date, scheduled_time 
             FROM matches 
             WHERE venue_id = :venue_id 
               AND scheduled_date = :sdate
               AND status NOT IN ('cancelled')
               AND id != :exclude_id
-              AND (
-                  (scheduled_time <= :stime AND (scheduled_end IS NULL OR scheduled_end > :stime))
-                  OR (scheduled_time < :etime AND (scheduled_end IS NULL OR scheduled_end >= :etime))
-                  OR (scheduled_time >= :stime AND (scheduled_end IS NULL OR scheduled_end <= :etime))
-              )
+              AND (scheduled_time >= :stime AND scheduled_time <= :etime)
         ";
         $params = [
             ':venue_id'   => intval($venueId),
@@ -74,19 +70,17 @@ function checkTeamConflict($teamAId, $teamBId, $scheduledDate, $startTime, $endT
             WHERE scheduled_date = :sdate
               AND status NOT IN ('cancelled')
               AND id != :exclude_id
-              AND (team_a_id IN (:ta, :tb) OR team_b_id IN (:ta, :tb))
-              AND (
-                  (scheduled_time <= :stime AND (scheduled_end IS NULL OR scheduled_end > :stime))
-                  OR (scheduled_time < :etime AND (scheduled_end IS NULL OR scheduled_end >= :etime))
-                  OR (scheduled_time >= :stime AND (scheduled_end IS NULL OR scheduled_end <= :etime))
-              )
+              AND (team_a_id = :ta1 OR team_a_id = :tb1 OR team_b_id = :ta2 OR team_b_id = :tb2)
+              AND (scheduled_time >= :stime AND scheduled_time <= :etime)
         ";
         $params = [
             ':sdate'      => $scheduledDate,
             ':stime'      => $startTime,
             ':etime'      => $endTime,
-            ':ta'         => intval($teamAId),
-            ':tb'         => intval($teamBId),
+            ':ta1'        => intval($teamAId),
+            ':tb1'        => intval($teamBId),
+            ':ta2'        => intval($teamAId),
+            ':tb2'        => intval($teamBId),
             ':exclude_id' => intval($excludeMatchId)
         ];
         $conflict = fetchOne($sql, $params);
@@ -110,11 +104,7 @@ function checkOfficialConflict($officialId, $scheduledDate, $startTime, $endTime
               AND scheduled_date = :sdate
               AND status NOT IN ('cancelled')
               AND id != :exclude_id
-              AND (
-                  (scheduled_time <= :stime AND (scheduled_end IS NULL OR scheduled_end > :stime))
-                  OR (scheduled_time < :etime AND (scheduled_end IS NULL OR scheduled_end >= :etime))
-                  OR (scheduled_time >= :stime AND (scheduled_end IS NULL OR scheduled_end <= :etime))
-              )
+              AND (scheduled_time >= :stime AND scheduled_time <= :etime)
         ";
         $params = [
             ':off_id'     => intval($officialId),

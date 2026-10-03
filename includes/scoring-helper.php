@@ -8,6 +8,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/match-functions.php';
 require_once __DIR__ . '/statistics-helper.php';
+require_once __DIR__ . '/notification-helper.php';
 require_once __DIR__ . '/scoring/scoring-engine.php';
 
 class ScoringService {
@@ -192,6 +193,18 @@ class ScoringService {
             $_SESSION["match_status_{$matchId}"] = $status;
         }
 
+        if (function_exists('triggerEventNotification')) {
+            if ($status === 'live') {
+                triggerEventNotification($matchId, 'EVENT_STARTED');
+            } elseif ($status === 'completed') {
+                triggerEventNotification($matchId, 'EVENT_FINISHED');
+            } elseif ($status === 'postponed') {
+                triggerEventNotification($matchId, 'EVENT_POSTPONED');
+            } elseif ($status === 'cancelled') {
+                triggerEventNotification($matchId, 'EVENT_CANCELLED');
+            }
+        }
+
         return ['success' => true, 'message' => "Match status changed to {$status}."];
     }
 
@@ -203,6 +216,12 @@ class ScoringService {
         
         // Trigger Automatic Standings & Points Table Processing Workflow
         StatisticsService::processMatchResult($matchId, $winnerTeamId, $resultSummary);
+
+        if (function_exists('triggerEventNotification')) {
+            triggerEventNotification($matchId, 'EVENT_FINISHED');
+            triggerEventNotification($matchId, 'RESULT_PUBLISHED');
+            triggerEventNotification($matchId, 'POINTS_UPDATED');
+        }
 
         return self::getLiveState($matchId);
     }

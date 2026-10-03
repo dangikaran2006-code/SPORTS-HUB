@@ -7,6 +7,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/fixture-generator.php';
+require_once __DIR__ . '/notification-helper.php';
 
 /**
  * Get Filtered List of Matches with Search
@@ -163,13 +164,13 @@ function createMatchService($data) {
             'official_id'     => $officialId,
             'scheduled_date'  => $sDate,
             'scheduled_time'  => $sTime,
-            'scheduled_start' => $sStart,
-            'scheduled_end'   => $sEnd,
-            'round_name'      => $roundName,
             'status'          => $status
         ]);
 
         if ($insertedId) {
+            if (function_exists('triggerEventNotification')) {
+                triggerEventNotification($insertedId, 'EVENT_CREATED');
+            }
             return ['success' => true, 'id' => $insertedId, 'message' => 'Match scheduled successfully.'];
         }
     }
@@ -198,8 +199,6 @@ function updateMatchService($id, $data) {
     $startTimeStamp = strtotime($sDate . ' ' . $sTime);
     $endTimeStamp   = $startTimeStamp + ($duration * 60);
     $eTime          = date('H:i:s', $endTimeStamp);
-    $sStart         = date('Y-m-d H:i:s', $startTimeStamp);
-    $sEnd           = date('Y-m-d H:i:s', $endTimeStamp);
 
     // Conflict Checks (excluding current match ID)
     if ($status !== 'cancelled') {
@@ -219,18 +218,27 @@ function updateMatchService($id, $data) {
     $db = getDB();
     if ($db->getConnection()) {
         $updateData = [
-            'venue_id'            => $venueId,
-            'official_id'         => $officialId,
-            'scheduled_date'      => $sDate,
-            'scheduled_time'      => $sTime,
-            'scheduled_start'     => $sStart,
-            'scheduled_end'       => $sEnd,
-            'status'              => $status,
-            'postponement_reason' => $postponeReason,
-            'cancellation_reason' => $cancelReason
+            'venue_id'        => $venueId,
+            'official_id'     => $officialId,
+            'scheduled_date'  => $sDate,
+            'scheduled_time'  => $sTime,
+            'status'          => $status
         ];
 
         update('matches', $updateData, 'id = :id', [':id' => $id]);
+
+        if (function_exists('triggerEventNotification')) {
+            if ($status === 'postponed' && strtolower($currentMatch['status']) !== 'postponed') {
+                triggerEventNotification($id, 'EVENT_POSTPONED', $postponeReason);
+            } elseif ($status === 'cancelled' && strtolower($currentMatch['status']) !== 'cancelled') {
+                triggerEventNotification($id, 'EVENT_CANCELLED', $cancelReason);
+            } elseif ($sDate !== $currentMatch['scheduled_date'] || $sTime !== $currentMatch['scheduled_time']) {
+                triggerEventNotification($id, 'EVENT_RESCHEDULED');
+            } else {
+                triggerEventNotification($id, 'EVENT_UPDATED');
+            }
+        }
+
         return ['success' => true, 'message' => 'Match details and schedule updated successfully.'];
     }
 

@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/notification-helper.php';
 
 // Enforce Login globally across protected pages
 requireLogin();
@@ -11,6 +12,7 @@ requireLogin();
 $currentUser = currentUser();
 $userName = $currentUser['name'] ?? 'Alex Mercer';
 $userRole = ucfirst($currentUser['role'] ?? 'Admin');
+$initialUnread = getUnreadNotificationCount($currentUser['id'] ?? null);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -50,14 +52,16 @@ $userRole = ucfirst($currentUser['role'] ?? 'Admin');
         <!-- Live Matches Indicator Pill -->
         <a href="<?php echo BASE_URL; ?>/public/live-score.php" class="live-indicator-pill">
           <span class="pulse-dot"></span>
-          <span>2 Matches Live</span>
+          <span>LIVE Scores</span>
         </a>
 
         <!-- Notifications Bell -->
-        <button class="icon-btn" title="Notifications" onclick="showToast('Notifications', 'No unread system alerts.', 'info')">
+        <a href="<?php echo BASE_URL; ?>/admin/notifications.php" class="icon-btn" title="Notification Center" style="position:relative; text-decoration:none;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span class="notification-badge"></span>
-        </button>
+          <span class="notification-badge" id="headerNotificationBadge" style="<?php echo ($initialUnread > 0) ? 'display:inline-block;' : 'display:none;'; ?>">
+            <?php echo ($initialUnread > 0) ? $initialUnread : ''; ?>
+          </span>
+        </a>
 
         <!-- User Profile Dropdown Component -->
         <div class="user-profile-wrapper" style="position:relative;">
@@ -78,8 +82,8 @@ $userRole = ucfirst($currentUser['role'] ?? 'Admin');
               <div style="font-weight:700; color:var(--text-main); font-size:0.9rem;"><?php echo htmlspecialchars($userName); ?></div>
               <div style="font-size:0.75rem; color:var(--text-muted);"><?php echo htmlspecialchars($currentUser['email'] ?? ''); ?></div>
             </div>
-            <a href="<?php echo BASE_URL; ?>/admin/players.php" style="padding:10px 16px; color:var(--text-main); font-size:0.85rem; display:flex; align-items:center; gap:8px;">
-              <span>👤 My Profile</span>
+            <a href="<?php echo BASE_URL; ?>/admin/notifications.php" style="padding:10px 16px; color:var(--text-main); font-size:0.85rem; display:flex; align-items:center; gap:8px;">
+              <span>🔔 Notifications</span>
             </a>
             <a href="<?php echo BASE_URL; ?>/admin/settings.php" style="padding:10px 16px; color:var(--text-main); font-size:0.85rem; display:flex; align-items:center; gap:8px;">
               <span>⚙️ Settings</span>
@@ -105,6 +109,29 @@ $userRole = ucfirst($currentUser['role'] ?? 'Admin');
         menu.style.display = 'none';
       }
     });
+
+    // Real-time Notification Polling
+    function pollNotifications() {
+      fetch('<?php echo BASE_URL; ?>/api/notifications/poll.php')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success) {
+            const count = data.unread_count || 0;
+            const hBadge = document.getElementById('headerNotificationBadge');
+            const sBadge = document.getElementById('sidebarUnreadBadge');
+            if (hBadge) {
+              hBadge.textContent = count > 0 ? count : '';
+              hBadge.style.display = count > 0 ? 'inline-block' : 'none';
+            }
+            if (sBadge) {
+              sBadge.textContent = count > 0 ? count : '';
+              sBadge.style.display = count > 0 ? 'inline-block' : 'none';
+            }
+          }
+        }).catch(err => {});
+    }
+    setInterval(pollNotifications, 15000);
+    document.addEventListener('DOMContentLoaded', pollNotifications);
     </script>
 
     <!-- Page Content Container Starts -->

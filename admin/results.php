@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/statistics-helper.php';
+require_once __DIR__ . '/../includes/notification-helper.php';
 
 requireAdminAccess();
 
@@ -30,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($action === 'verify') {
                 StatisticsService::processMatchResult($matchId, $match['winner_team_id'], $match['result_summary'] ?? 'Result Verified');
                 logAuditAction('Result Verified', 'Match', $matchId, "Admin verified match result for Match #{$matchId}");
+                triggerEventNotification($matchId, 'RESULT_PUBLISHED');
+                triggerEventNotification($matchId, 'POINTS_UPDATED');
                 $msg = "Result for Match #{$matchId} verified successfully. Trophy standings updated.";
             } elseif ($action === 'reopen') {
                 if ($db->getConnection()) {
@@ -37,6 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     StatisticsService::recalculateTournamentStandings($match['tournament_id'], $db->getConnection());
                 }
                 logAuditAction('Result Re-opened', 'Match', $matchId, "Admin re-opened match #{$matchId} for score correction");
+                triggerEventNotification($matchId, 'RESULT_CORRECTED', 'Match result re-opened for official score correction.');
+                triggerEventNotification($matchId, 'POINTS_UPDATED');
                 $msg = "Result for Match #{$matchId} re-opened for score correction.";
             }
         }
