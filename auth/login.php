@@ -40,19 +40,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = null;
 
         if ($db->getConnection()) {
-            $user = fetchOne("SELECT * FROM users WHERE LOWER(email) = :email AND status = 1", [':email' => $email]);
+            $user = fetchOne("SELECT * FROM users WHERE LOWER(email) = :email", [':email' => $email]);
         }
 
-        if ($user && password_verify($password, $user['password'])) {
-            session_regenerate_id(true);
+        if ($user) {
+            // Check account status
+            if ((int)$user['status'] !== 1 && strtolower($user['status'] ?? '') !== 'active') {
+                $error = 'Account is inactive or suspended. Please contact championship administration.';
+                logAuditAction('Login Blocked', 'User', $user['id'], "Attempted login on inactive/suspended account: {$email}");
+            } elseif (password_verify($password, $user['password'])) {
+                session_regenerate_id(true);
 
-            $_SESSION['user_id']   = $user['id'];
-            $_SESSION['user_name'] = $user['name'];
-            $_SESSION['user_email']= $user['email'];
-            $_SESSION['user_role'] = $user['role'];
+                $_SESSION['user_id']   = $user['id'];
+                $_SESSION['user_name'] = $user['name'];
+                $_SESSION['user_email']= $user['email'];
+                $_SESSION['user_role'] = strtolower($user['role']);
 
-            redirectByRole($user['role']);
-            exit;
+                logAuditAction('Login Success', 'User', $user['id'], "User logged in successfully as {$user['role']}");
+                redirectByRole($user['role']);
+                exit;
+            } else {
+                $error = 'Invalid credentials.';
+                logAuditAction('Login Failed', 'User', $user['id'], "Failed login attempt (invalid password) for email: {$email}");
+            }
         } else {
             // Flexible authentication for demo / dev environment & custom logins
             $demoRoles = [
@@ -65,28 +75,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (isset($demoRoles[$email])) {
                 $authUser = $demoRoles[$email];
+                session_regenerate_id(true);
+                $_SESSION['user_id']   = $authUser['id'];
+                $_SESSION['user_name'] = $authUser['name'];
+                $_SESSION['user_email']= $email;
+                $_SESSION['user_role'] = $authUser['role'];
+
+                logAuditAction('Login Success', 'User', $authUser['id'], "Demo user logged in as {$authUser['role']}");
+                redirectByRole($authUser['role']);
+                exit;
             } else {
-                // Format name from email (e.g. dangikaran2006 -> Karan Dangi)
-                $nameParts = explode('@', $email);
-                $cleanName = ucwords(str_replace(['.', '_', '-'], ' ', $nameParts[0]));
-                $authUser = [
-                    'id'    => time(),
-                    'name'  => $cleanName,
-                    'role'  => 'admin'
-                ];
+                $error = 'Invalid credentials.';
+                logAuditAction('Login Failed', 'User', null, "Failed login attempt (user not found) for email: {$email}");
             }
-
-            session_regenerate_id(true);
-            $_SESSION['user_id']   = $authUser['id'];
-            $_SESSION['user_name'] = $authUser['name'];
-            $_SESSION['user_email']= $email;
-            $_SESSION['user_role'] = $authUser['role'];
-
-            redirectByRole($authUser['role']);
-            exit;
         }
     }
 }
+
 
 function redirectByRole($role) {
     switch (strtolower($role)) {

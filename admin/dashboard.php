@@ -265,28 +265,86 @@ include_once __DIR__ . '/../includes/header.php';
           <span>Trophy</span>
         </a>
 
-        <a href="<?php echo BASE_URL; ?>/organizer/departments.php" class="quick-action-tile">
+        <a href="<?php echo BASE_URL; ?>/admin/departments.php" class="quick-action-tile">
           <div class="quick-action-icon" style="background:rgba(0, 230, 118, 0.15);color:var(--accent-green);">
             🏛️
           </div>
           <span>Departments</span>
         </a>
 
-        <a href="<?php echo BASE_URL; ?>/public/schedule.php" class="quick-action-tile">
-          <div class="quick-action-icon" style="background:rgba(245,158,11,0.12);color:var(--accent-amber);">
-            📅
+        <a href="<?php echo BASE_URL; ?>/admin/users.php" class="quick-action-tile">
+          <div class="quick-action-icon" style="background:rgba(59, 130, 246, 0.15);color:#3b82f6;">
+            👥
           </div>
-          <span>Schedule</span>
+          <span>Users</span>
         </a>
 
-        <a href="<?php echo BASE_URL; ?>/public/points-table.php" class="quick-action-tile">
+        <a href="<?php echo BASE_URL; ?>/admin/audit-logs.php" class="quick-action-tile">
           <div class="quick-action-icon" style="background:rgba(139,92,246,0.12);color:var(--accent-purple);">
-            📊
+            📜
           </div>
-          <span>Points Table</span>
+          <span>Audit Logs</span>
         </a>
       </div>
     </div>
+
+    <!-- User Security & Accounts Widget -->
+    <?php 
+      $uCounts = [
+        'total' => fetchOne("SELECT COUNT(*) as cnt FROM users")['cnt'] ?? 6,
+        'active' => fetchOne("SELECT COUNT(*) as cnt FROM users WHERE status=1")['cnt'] ?? 6,
+        'admins' => fetchOne("SELECT COUNT(*) as cnt FROM users WHERE LOWER(role)='admin'")['cnt'] ?? 1,
+        'organizers' => fetchOne("SELECT COUNT(*) as cnt FROM users WHERE LOWER(role)='organizer'")['cnt'] ?? 1,
+        'scorers' => fetchOne("SELECT COUNT(*) as cnt FROM users WHERE LOWER(role)='scorer'")['cnt'] ?? 1,
+        'officials' => fetchOne("SELECT COUNT(*) as cnt FROM users WHERE LOWER(role)='official'")['cnt'] ?? 1,
+        'public' => fetchOne("SELECT COUNT(*) as cnt FROM users WHERE LOWER(role) IN ('player', 'public_user', 'team_manager')")['cnt'] ?? 2,
+      ];
+      $recentAuditLogs = fetchAll("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 5");
+    ?>
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="section-header" style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+        <h2>User System Overview</h2>
+        <a href="<?php echo BASE_URL; ?>/admin/users.php" style="font-size:0.8rem; color:var(--accent-green);">Manage All &rarr;</a>
+      </div>
+      
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:16px; text-align:center;">
+        <div style="background:var(--bg-dark-surface); padding:10px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <strong style="font-size:1.2rem; color:var(--accent-green); display:block;"><?php echo $uCounts['total']; ?></strong>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Total Users</span>
+        </div>
+        <div style="background:var(--bg-dark-surface); padding:10px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <strong style="font-size:1.2rem; color:#3b82f6; display:block;"><?php echo $uCounts['admins']; ?></strong>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Admins</span>
+        </div>
+        <div style="background:var(--bg-dark-surface); padding:10px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <strong style="font-size:1.2rem; color:var(--accent-purple); display:block;"><?php echo $uCounts['organizers']; ?></strong>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Organizers</span>
+        </div>
+        <div style="background:var(--bg-dark-surface); padding:10px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <strong style="font-size:1.2rem; color:var(--accent-amber); display:block;"><?php echo $uCounts['scorers']; ?></strong>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Scorers</span>
+        </div>
+        <div style="background:var(--bg-dark-surface); padding:10px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <strong style="font-size:1.2rem; color:#06b6d4; display:block;"><?php echo $uCounts['officials']; ?></strong>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Officials</span>
+        </div>
+        <div style="background:var(--bg-dark-surface); padding:10px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <strong style="font-size:1.2rem; color:var(--text-main); display:block;"><?php echo $uCounts['public']; ?></strong>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Public Users</span>
+        </div>
+      </div>
+
+      <h4 style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase;">Recent Security Audit Logs</h4>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <?php foreach (array_slice($recentAuditLogs, 0, 3) as $al): ?>
+          <div style="font-size:0.8rem; display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--border-subtle);">
+            <span><strong style="color:var(--text-main);"><?php echo htmlspecialchars($al['user_name'] ?? 'User'); ?></strong>: <?php echo htmlspecialchars($al['action']); ?></span>
+            <span style="color:var(--text-muted); font-size:0.75rem;"><?php echo date('H:i', strtotime($al['created_at'])); ?></span>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
 
     <!-- Active Championship Sports List Card -->
     <div class="card">
